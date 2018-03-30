@@ -1,6 +1,7 @@
+import org.apache.spark
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{DoubleType, IntegerType}
+import org.apache.spark.sql.types._
 
 /**
   * The data is described here - https://collegescorecard.ed.gov/data/documentation/
@@ -30,7 +31,27 @@ object CollegeScorecard {
     * @param path the path to the csv file(s)
     * @return a dataframe
     */
-  def loadScorecardData(spark: SparkSession, path: String): DataFrame = ??? // Implement
+  def loadScorecardData(spark: SparkSession, path: String): DataFrame = {
+    val df = spark.read
+      .format("csv").option("header","true")
+      .option("nullValue","NULL")
+      .option("inferSchema","true")
+      .load(path)
+    val subDF = df.select(
+      "UNITID", "OPEID","INSTNM","CITY","STABBR","COSTT4_A","DEBT_MDN","C100_4","C150_4"
+    )
+    val subDF1 = subDF.select(subDF("UNITID").cast(IntegerType),
+      subDF("OPEID").cast(IntegerType),
+      subDF("INSTNM").cast(StringType),
+      subDF("CITY").cast(StringType),
+      subDF("STABBR").cast(StringType),
+      subDF("COSTT4_A").cast(IntegerType),
+      subDF("DEBT_MDN").cast(DoubleType),
+      subDF("C100_4").cast(DoubleType),
+      subDF("C150_4").cast(DoubleType)
+    )
+    subDF1
+  }
 
   /**
     * Load scorecard crosswalk data using office plugin
@@ -42,14 +63,13 @@ object CollegeScorecard {
   def loadCrosswalkData(spark: SparkSession, path: String): DataFrame = {
     spark.read
       .format("org.zuinnote.spark.office.excel")
-      .option("read.lowFootprint", true)
+      .option("read.lowFootprint", value = true)
       .option("read.sheets", "Crosswalk")
-      .option("read.spark.simpleMode",true)
-      .option("read.spark.useHeader", true)
+      .option("read.spark.simpleMode",value = true)
+      .option("read.spark.useHeader", value = true)
       .option("sheetName", "crosswalk")
       .load(path)
   }
-
 
   /**
     * Return a dataframe with five states with highest per academic year cost (COSTT4_A)
@@ -62,7 +82,15 @@ object CollegeScorecard {
     * @param df the dataframe
     * @return the dataframe
     */
-  def fiveMostExpensiveStates(df: DataFrame): DataFrame = ??? //Implement
+  def fiveMostExpensiveStates(df: DataFrame): DataFrame = {
+    val subDf = df.select("STABBR","COSTT4_A").
+      where(df("STABBR").isNotNull).
+      where(df("COSTT4_A").isNotNull).
+      groupBy("STABBR").
+      agg(avg("COSTT4_A").alias("COSTT4_A_MEAN")).
+      sort(desc("COSTT4_A_MEAN")).limit(5)
+    subDf
+  }
 
   /**
     * Return a dataframe with five institutions in Texas with highest median student debt (DEBT_MDN)
@@ -80,7 +108,14 @@ object CollegeScorecard {
     * @param df the dataframe
     * @return the dataframe
     */
-  def fiveTexasCollegesWithHighestDebt(df: DataFrame): DataFrame = ??? //Implement
+  def fiveTexasCollegesWithHighestDebt(df: DataFrame): DataFrame = {
+    val subDf = df.filter(df("STABBR") === "TX").
+      select("UNITID", "OPEID", "INSTNM", "STABBR", "DEBT_MDN").
+      where(df("DEBT_MDN").isNotNull).
+      sort(desc("DEBT_MDN")).
+      limit(5)
+    subDf
+  }
 
   /**
     * Return a dataframe with the average and sample standard deviation of the expected time completion rate (C100_4)
@@ -99,6 +134,16 @@ object CollegeScorecard {
     * @param df the dataframe
     * @return the dataframe
     */
-  def completionRateStatsInTexasByCity(df: DataFrame): DataFrame = ??? //Implement
-
+  def completionRateStatsInTexasByCity(df: DataFrame): DataFrame = {
+    val subDf = df.filter(df("STABBR")==="TX").
+      select("C100_4","CITY").
+      where(df("C100_4").isNotNull).
+      groupBy("CITY").
+      agg(avg("C100_4").alias("C100_4_MEAN"),
+        stddev("C100_4").alias("C100_4_STDDEV"),
+        count("C100_4").alias("COUNT")).
+      sort(desc("C100_4_MEAN"))
+    val subDf1 = subDf.filter(subDf("COUNT")>1)
+    subDf1
+  }
 }

@@ -140,7 +140,7 @@ object CollegeScorecard {
       where(df("C100_4").isNotNull).
       groupBy("CITY").
       agg(avg("C100_4").alias("C100_4_MEAN"),
-        stddev("C100_4").alias("C100_4_STDDEV"),
+        stddev_samp("C100_4").alias("C100_4_STDDEV"),
         count("C100_4").alias("COUNT")).
       sort(desc("C100_4_MEAN"))
     val subDf1 = subDf.filter(subDf("COUNT")>1)

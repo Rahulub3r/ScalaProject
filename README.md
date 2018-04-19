@@ -1,6 +1,6 @@
 # Spark Data Munging
 
-The purpose of the project is to use spark to load and query different views from the [CollegeScore card data](https://collegescorecard.ed.gov/data/documentation/)
+The purpose of the project is to use spark to load and query different views from the [CollegeScore card data](https://collegescorecard.ed.gov/data/). Please download the data first and add it in the resources directory to use it.
 
 Different things implemented were as follows:
 1. Loading data into spark session
